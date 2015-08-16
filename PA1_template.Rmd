@@ -1,25 +1,70 @@
----
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
----
+Repdata Assignment #1
+=====================
 
+```{r}
+library(plyr)
+library(dplyr)
+library(ggplot2)
+library(lattice)
+```
 
-## Loading and preprocessing the data
+###The Data
+From the assignment's description:
 
+*This assignment makes use of data from a personal activity monitoring device. This device collects data at 5 minute intervals through out the day. The data consists of two months of data from an anonymous individual collected during the months of October and November, 2012 and include the number of steps taken in 5 minute intervals each day.*
 
+*The variables included in this dataset are:*
 
-## What is mean total number of steps taken per day?
+- **steps**: *Number of steps taking in a 5-minute interval (missing values are coded as NA)*
+- **date**: *The date on which the measurement was taken in YYYY-MM-DD format*
+- **interval**: *Identifier for the 5-minute interval in which measurement was taken*
 
+*The dataset is stored in a comma-separated-value (CSV) file and there are a total of 17,568 observations in this dataset.*
 
+```{r}
+ActivityData <- read.csv("./activity.csv")
+ActivityData$day <- weekdays(as.Date(ActivityData$date))
+str(ActivityData)
+summary(ActivityData)
+```
 
-## What is the average daily activity pattern?
+###Mean total number of steps per day
+```{r}
+TotSteps <- sapply(split(ActivityData$steps, ActivityData$date), sum)
+mean(TotSteps, na.rm=TRUE)
+qplot(TotSteps, xlab="total steps / day")
+```
 
+###Average daily acivty pattern
+The five minute interval containing the most steps averaged across all days is 835. And belw the calculation here's a graph of all the intervals with their respective numbers of steps.
+```{r}
+AverageSteps <- sapply(split(ActivityData$steps, ActivityData$interval), mean, na.rm = TRUE)
+names(AverageSteps)[AverageSteps == max(AverageSteps)]
+plot(AverageSteps, type = "l", xlab = "interval", ylab = "number of steps")
+```
 
-
-## Imputing missing values
-
-
-
-## Are there differences in activity patterns between weekdays and weekends?
+###Missing values
+The number of missing values is:
+```{r}
+sum(is.na(ActivityData$steps))
+```
+We fill them up wih the corresponding means. And check on our work.
+```{r}
+ActivityDataV2 <- ActivityData
+for (i in 1:nrow(ActivityDataV2)) {
+    if (is.na(ActivityDataV2[i, "steps"])) {
+        interval = as.character(ActivityDataV2[i, "interval"])
+        ActivityDataV2[i, "steps"] = AverageSteps[interval]
+    }
+}
+sum(is.na(ActivityDataV2$steps))
+```
+###Weekdays vs weekends
+```{r}
+ActivityDataV2$wkday <- ifelse(ActivityDataV2$day %in% c("Saturday", "Sunday"),"Weekend", "Weekday")
+WeekVersusEnd <- aggregate(steps ~ interval + wkday, ActivityDataV2, mean)
+ggplot(WeekVersusEnd, aes(x=interval,y=steps)) + 
+geom_line(color="black",size=0.5) + 
+facet_wrap(~wkday, nrow=2, ncol=1) + 
+labs(x="interval",y="number of steps")
+```
